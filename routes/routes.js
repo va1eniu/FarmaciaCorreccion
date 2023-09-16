@@ -899,13 +899,138 @@ router.get("/pacientes-compraron-paracetamol-2023", async (req, res) => {
   }
 });
 
-//26. Total de medicamentos vendidos por mes en 2023.
+router.get("/endpoint26", async (req, res) => {
+  try {
+    const client = new MongoClient(bases);
+    await client.connect();
+    const db = client.db(nombreBase);
+    const ventasCollection = db.collection("Ventas");
+    const startDate = new Date("2023-01-01T00:00:00.000+00:00");
+    const endDate = new Date("2023-12-31T23:59:59.999+00:00");
+    const query = {
+      fechaVenta: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    };
+    const ventasEn2023 = await ventasCollection.find(query).toArray();
+    let totalMedicamentosVendidos = 0;
+    ventasEn2023.forEach((venta) => {
+      venta.medicamentosVendidos.forEach((medicamento) => {
+        totalMedicamentosVendidos += medicamento.cantidadVendida;
+      });
+    });
+    res.json({ totalMedicamentosVendidos });
+  } catch (error) {
+    console.error(
+      "Error al calcular el total de medicamentos vendidos en 2023:",
+      error
+    );
+    res
+      .status(500)
+      .json({
+        error: "Error al calcular el total de medicamentos vendidos en 2023.",
+      });
+  }
+});
 
 //27.Empleados con menos de 5 ventas en 2023.
 
-//28. Número total de proveedores que suministraron medicamentos en 2023.
+router.get("/Empleados-con-menos-de-5-ventas", async (req, res) => {
+  try {
+    const client = new MongoClient(bases);
+    await client.connect();
+    const db = client.db(nombreBase);
+    const ventasCollection = db.collection("Ventas");
+    const ventas2023 = await ventasCollection
+      .find({
+        fechaVenta: {
+          $gte: new Date("2023-01-01T00:00:00.000+00:00"),
+          $lte: new Date("2023-12-31T23:59:59.999+00:00"),
+        },
+      })
+      .toArray();
+    const ventasPorEmpleado = {};
+    ventas2023.forEach((venta) => {
+      const empleadoNombre = venta.empleado.nombre;
 
-//29. Proveedores de los medicamentos con menos de 50 unidades en stock.
+      if (ventasPorEmpleado[empleadoNombre]) {
+        ventasPorEmpleado[empleadoNombre]++;
+      } else {
+        ventasPorEmpleado[empleadoNombre] = 1;
+      }
+    });
+    const empleadosConMenosDe5Ventas = Object.keys(ventasPorEmpleado).filter(
+      (empleado) => ventasPorEmpleado[empleado] < 5
+    );
+    client.close();
+    res.json({ empleadosConMenosDe5Ventas });
+  } catch (error) {
+    console.error(
+      "Error al obtener los empleados con menos de 5 ventas en 2023:",
+      error
+    );
+    res
+      .status(500)
+      .json({
+        error: "Error al obtener los empleados con menos de 5 ventas en 2023.",
+      });
+  }
+});
+
+//28.Número total de proveedores que suministraron medicamentos en 2023.
+
+router.get(
+  "/proveedores-que-suministraron-medicamentos-en-2023",
+  async (req, res) => {
+    try {
+      const client = new MongoClient(bases);
+      await client.connect();
+      const db = client.db(nombreBase);
+      const comprasCollection = db.collection("Compras");
+      const proveedores = await comprasCollection
+        .find({
+          fechaCompra: { $gte: new Date("2023-01-01T00:00:00.000+00:00") },
+        })
+        .toArray();
+
+      const totalProveedores = new Set(
+        proveedores.map((compra) => compra.proveedor.nombre)
+      ).size;
+
+      res.json({ totalProveedores });
+    } catch (error) {
+      console.error("Error al obtener el número total de proveedores:", error);
+      res
+        .status(500)
+        .json({ error: "Error al obtener el número total de proveedores." });
+    }
+  }
+);
+
+//29.Proveedores de los medicamentos con menos de 50 unidades en stock.
+
+router.get("/menos-de-50-unidades-en-stock", async (req, res) => {
+  try {
+    const client = new MongoClient(bases);
+    await client.connect();
+    const db = client.db(nombreBase);
+    const medicamentosCollection = db.collection("Medicamentos");
+    const medicamentosBajoStock = await medicamentosCollection
+      .find({ stock: { $lt: 50 } })
+      .toArray();
+    const proveedores = [
+      ...new Set(medicamentosBajoStock.map((med) => med.proveedor.nombre)),
+    ];
+    const nombresMedicamentos = medicamentosBajoStock.map((med) => med.nombre);
+    res.json({ proveedores, nombresMedicamentos });
+  } catch (error) {
+    console.error("Error al obtener proveedores con stock bajo:", error);
+    res
+      .status(500)
+      .json({ error: "Error al obtener proveedores con stock bajo." });
+  }
+});
 
 // 30. Pacientes que no han comprado ningún medicamento en 2023.
 
@@ -955,7 +1080,49 @@ router.get("/pacientes-sin-compras-en-2023", async (req, res) => {
   }
 });
 
-//31. Medicamentos que han sido vendidos cada mes del año 2023.
+//31.Medicamentos que han sido vendidos cada mes del año 2023.
+
+router.get("/vendidos-cada-mes-del-ano-2023", async (req, res) => {
+  try {
+    const client = new MongoClient(bases);
+    await client.connect();
+    const db = client.db(nombreBase);
+    const ventasCollection = db.collection("Ventas");
+    const ventas2023 = await ventasCollection
+      .find({
+        fechaVenta: {
+          $gte: new Date("2023-01-01"),
+          $lt: new Date("2024-01-01"),
+        },
+      })
+      .toArray();
+    const ventasPorMes = {};
+    ventas2023.forEach((venta) => {
+      const fechaVenta = new Date(venta.fechaVenta);
+      const mes = fechaVenta.getMonth() + 1;
+      const año = fechaVenta.getFullYear();
+
+      const key = `${año}-${mes}`;
+
+      if (!ventasPorMes[key]) {
+        ventasPorMes[key] = [];
+      }
+
+      ventasPorMes[key].push({
+        nombreMedicamento: venta.medicamentosVendidos[0].nombreMedicamento,
+        cantidadVendida: venta.medicamentosVendidos[0].cantidadVendida,
+        precio: venta.medicamentosVendidos[0].precio,
+      });
+    });
+
+    res.json({ ventasPorMes });
+  } catch (error) {
+    console.error("Error al obtener las ventas por mes en 2023:", error);
+    res
+      .status(500)
+      .json({ error: "Error al obtener las ventas por mes en 2023." });
+  }
+});
 
 //32. Empleado que ha vendido la mayor cantidad de medicamentos distintos en 2023.
 
@@ -1076,7 +1243,31 @@ router.get("/paciente-mayor-gasto-2023", async (req, res) => {
   }
 });
 
-//34. Medicamentos que no han sido vendidos en 2023.
+//34.Medicamentos que no han sido vendidos en 2023.
+
+router.get("/no-han-ido-vendidos-en-2023", async (req, res) => {
+  try {
+    const client = new MongoClient(bases);
+    await client.connect();
+    const db = client.db(nombreBase);
+    const medicamentosCollection = db.collection("Medicamentos");
+    const medicamentos = await medicamentosCollection.find({}).toArray();
+
+    const nombresMedicamentosMed = medicamentos.map((med) => med.nombre);
+    const nombresMedicamentosVentas = ventas.flatMap((venta) =>
+      venta.medicamentosVendidos.map((med) => med.nombreMedicamento)
+    );
+
+    const medicamentosFaltantesEnVentas = nombresMedicamentosMed.filter(
+      (nombre) => !nombresMedicamentosVentas.includes(nombre)
+    );
+
+    res.json({ medicamentos, medicamentosFaltantesEnVentas });
+  } catch (error) {
+    console.error("Error al obtener el stock:", error);
+    res.status(500).json({ error: "Error al obtener el stock." });
+  }
+});
 
 // 35. Proveedores que han suministrado al menos 5 medicamentos diferentes en 2023.
 
@@ -1265,7 +1456,5 @@ router.get(
     }
   }
 );
-
-
 
 export default router;
