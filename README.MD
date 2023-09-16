@@ -343,7 +343,3 @@ Este endpoint devuelve una lista de medicamentos con un precio mayor a 50 y un s
   - Código: 404 Not Found
   - Cuerpo: "No se encontraron medicamentos con precio mayor a 50 y stock menor a 100" si no se cumplen los criterios.
   - Cuerpo: "Error al buscar medicamentos" en caso de cualquier error al acceder a la base de datos.
-
----
-
-Esta documentación debe ayudarte a comprender la funcionalidad de cada endpoint en tu API de Farmacia. Asegúrate de mantenerla actualizada a medida que realices cambios en la API.
