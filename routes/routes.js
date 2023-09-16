@@ -899,7 +899,10 @@ router.get("/pacientes-compraron-paracetamol-2023", async (req, res) => {
   }
 });
 
-router.get("/endpoint26", async (req, res) => {
+
+//26. *Pacientes que no tuvieron ninguna de las dos siguientes afecciones durante la última semana: */
+
+router.get("/26", async (req, res) => {
   try {
     const client = new MongoClient(bases);
     await client.connect();
